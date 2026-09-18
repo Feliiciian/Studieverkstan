@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Studieverkstan Närvaro</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17202a;--muted:#68727d;--line:#dfe4e8;--green:#d9f2df;--yellow:#fff0bd;--red:#ffd8d8;--blue:#dcecff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#243447;color:white;padding:20px 18px;text-align:center;position:sticky;top:0;z-index:5}
+h1{margin:0;font-size:clamp(26px,5vw,38px)}header p{margin:5px 0;font-size:15px;opacity:.9}
+#clock{font-size:15px;margin-top:6px}.wrap{max-width:1100px;margin:auto;padding:20px 16px 50px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}.toolbar button,.toolbar input,.toolbar select{font:inherit;border:1px solid var(--line);border-radius:12px;padding:10px 13px;background:white}
+.toolbar .teacher{margin-left:auto;background:#243447;color:white;border-color:#243447}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.student{border:2px solid transparent;border-radius:18px;padding:22px 10px;background:var(--card);box-shadow:0 3px 12px #0001;min-height:115px;font-size:21px;font-weight:750;cursor:pointer}.student.active{border-color:#64ad73;background:var(--green)}.student.pause{border-color:#d7aa31;background:var(--yellow)}.student small{display:block;margin-top:7px;font-size:13px;font-weight:500;color:var(--muted)}
+.card{background:white;border-radius:22px;padding:25px;max-width:500px;width:100%;box-shadow:0 15px 50px #0004;text-align:center}.panel{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:center;justify-content:center;padding:18px}.card h2{font-size:30px;margin:0 0 14px}.status{background:#f1f3f5;border-radius:13px;padding:13px;margin:12px 0 18px}.actions{display:grid;gap:10px}.action{border:0;border-radius:14px;padding:17px;font-size:19px;font-weight:750;cursor:pointer}.in{background:var(--green)}.pause{background:var(--yellow)}.out{background:var(--red)}.close{margin-top:14px;border:0;border-radius:12px;padding:11px 22px;font-size:16px;cursor:pointer}
+#teacherView{display:none}.box{background:white;border-radius:18px;padding:18px;margin-top:18px;box-shadow:0 3px 12px #0001}.box h2{margin-top:0}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{background:#f5f6f7}.back{background:#243447;color:white;border:0;border-radius:12px;padding:11px 15px;font:inherit;cursor:pointer}.danger{background:#ffe0e0!important}.hint{color:var(--muted);font-size:14px}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:430px){.grid{gap:10px}.student{min-height:100px;font-size:18px;padding:17px 6px}.wrap{padding:14px 10px}}
+
+#todaySchedule{margin-bottom:18px}.lesson{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.lesson:last-child{border-bottom:0}.lesson b{min-width:110px}.lesson .tag{background:var(--blue);border-radius:9px;padding:4px 8px;font-size:13px}.none{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<h1>📚 STUDIEVERKSTAN</h1>
+<p>Tryck på ditt namn för att checka in eller ut.</p>
+<div id="clock"></div>
+</header>
+
+<main class="wrap">
+<div id="mainView">
+<div class="toolbar">
+<label>Datum <input id="date" type="date"></label>
+<button onclick="resetToday()">↻ Uppdatera</button>
+<button class="teacher" onclick="showTeacher()">👩‍🏫 Lärarläge</button>
+</div>
+<div class="box" id="todaySchedule">
+<h2>📅 Dagens Studieverkstan</h2>
+<div id="todayList"></div>
+</div>
+<div class="grid" id="students"></div>
+</div>
+
+<div id="teacherView">
+<div class="toolbar">
+<button class="back" onclick="showMain()">← Till elevskärmen</button>
+<label>Datum <input id="teacherDate" type="date"></label>
+</div>
+<div class="box">
+<h2>📊 Närvaro</h2>
+<p class="hint">Här ser du dagens registreringar. Uppgifterna sparas på den här enheten.</p>
+<div class="scroll"><table><thead><tr><th>Elev</th><th>In</th><th>Paus</th><th>Ut</th><th>Närvaro</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<div class="box">
+<h2>🧹 Hantera</h2>
+<button class="action danger" onclick="clearDay()">Rensa vald dags registreringar</button>
+</div>
+</div>
+</main>
+
+<div class="panel" id="panel">
+<div class="card">
+<h2 id="studentName"></h2>
+<div class="status" id="studentStatus"></div>
+<div class="actions">
+<button class="action in" onclick="checkIn()">🟢 Checka in</button>
+<button class="action pause" onclick="togglePause()">🚻 Paus / toalett</button>
+<button class="action out" onclick="checkOut()">🔴 Checka ut</button>
+</div>
+<button class="close" onclick="closePanel()">Stäng</button>
+</div>
+</div>
+
+<script>
+const names=["Lisa","Melissa","Leo","Vanessa","Wilmer","Iris","Signe","Stina","Majken","Nathalie","William","Elliot","Melker"];
+const KEY="studieverkstan_narvaro_v2";
+let store=JSON.parse(localStorage.getItem(KEY)||"{}"), selected=null;
+
+function today(){return new Date().toISOString().slice(0,10)}
+function time(){return new Date().toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}
+function save(){localStorage.setItem(KEY,JSON.stringify(store))}
+function dayData(d){if(!store[d])store[d]={};return store[d]}
+function updateClock(){document.getElementById("clock").textContent=new Date().toLocaleDateString("sv-SE",{weekday:"long",day:"numeric",month:"long"})+" • "+time()}
+setInterval(updateClock,1000);updateClock();
+
+const date=document.getElementById("date"), teacherDate=document.getElementById("teacherDate");
+date.value=today();teacherDate.value=today();
+date.onchange=render;teacherDate.onchange=renderTeacher;
+
+
+function dayName(){
+ const d=new Date(date.value+"T12:00:00").getDay();
+ return ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"][d];
+}
+const schedule = {"Lisa": {"Måndag": [{"start": "08:30", "end": "11:00", "subject": ""}], "Tisdag": [{"start": "09:10", "end": "11:00", "subject": ""}], "Onsdag": [], "Torsdag": [{"start": "08:30", "end": "11:00", "subject": ""}], "Fredag": [{"start": "09:10", "end": "11:00", "subject": ""}]}, "Melissa": {"Måndag": [{"start": "12:55", "end": "14:00", "subject": ""}], "Tisdag": [{"start": "10:25", "end": "11:00", "subject": ""}], "Onsdag": [], "Torsdag": [{"start": "10:15", "end": "11:10", "subject": ""}], "Fredag": []}, "Leo": {"Måndag": [], "Tisdag": [{"start": "12:50", "end": "13:50", "subject": ""}], "Onsdag": [], "Torsdag": [{"start": "11:45", "end": "12:45", "subject": ""}], "Fredag": [{"start": "08:30", "end": "09:05", "subject": ""}]}, "Vanessa": {"Måndag": [], "Tisdag": [{"start": "12:50", "end": "13:50", "subject": ""}], "Onsdag": [], "Torsdag": [{"start": "11:45", "end": "12:45", "subject": ""}], "Fredag": [{"start": "08:30", "end": "09:05", "subject": ""}]}, "Wilmer": {"Måndag": [], "Tisdag": [{"start": "12:50", "end": "13:50", "subject": ""}], "Onsdag": [], "Torsdag": [{"start": "11:45", "end": "12:45", "subject": ""}], "Fredag": [{"start": "08:30", "end": "09:05", "subject": ""}]}, "Iris": {"Måndag": [{"start": "10:15", "end": "11:00", "subject": ""}], "Tisdag": [], "Onsdag": [], "Torsdag": [{"start": "08:30", "end": "09:10", "subject": ""}], "Fredag": [{"start": "12:55", "end": "14:00", "subject": ""}]}, "Signe": {"Måndag": [{"start": "09:00", "end": "09:30", "subject": ""}], "Tisdag": [], "Onsdag": [{"start": "08:50", "end": "09:20", "subject": ""}], "Torsdag": [], "Fredag": []}, "Stina": {"Måndag": [{"start": "09:00", "end": "09:30", "subject": ""}], "Tisdag": [{"start": "09:00", "end": "09:30", "subject": ""}], "Onsdag": [{"start": "09:00", "end": "09:30", "subject": ""}], "Torsdag": [], "Fredag": [{"start": "09:00", "end": "09:30", "subject": ""}]}, "Majken": {"Måndag": [], "Tisdag": [{"start": "09:50", "end": "10:55", "subject": ""}], "Onsdag": [{"start": "11:30", "end": "12:40", "subject": ""}], "Torsdag": [], "Fredag": [{"start": "08:30", "end": "09:40", "subject": "So"}, {"start": "09:45", "end": "10:55", "subject": ""}]}, "Nathalie": {"Måndag": [], "Tisdag": [{"start": "09:50", "end": "10:55", "subject": ""}], "Onsdag": [{"start": "09:35", "end": "10:30", "subject": "En"}, {"start": "11:30", "end": "12:40", "subject": ""}], "Torsdag": [{"start": "14:10", "end": "15:10", "subject": "En"}], "Fredag": [{"start": "09:45", "end": "10:55", "subject": ""}]}, "William": {"Måndag": [{"start": "08:45", "end": "09:10", "subject": "St-tid"}, {"start": "09:20", "end": "10:10", "subject": "So"}, {"start": "10:15", "end": "11:00", "subject": "Sv"}, {"start": "11:00", "end": "12:00", "subject": "Lunch + rast"}, {"start": "12:00", "end": "12:50", "subject": "En"}, {"start": "13:00", "end": "13:30", "subject": "Sv"}, {"start": "14:00", "end": "15:00", "subject": "Ma"}], "Tisdag": [{"start": "08:45", "end": "09:20", "subject": "Ma"}, {"start": "09:30", "end": "10:15", "subject": "En"}, {"start": "10:25", "end": "11:00", "subject": "Sv"}, {"start": "11:00", "end": "12:00", "subject": "Lunch + rast"}, {"start": "12:00", "end": "12:50", "subject": "So"}, {"start": "13:10", "end": "14:05", "subject": "Sv"}, {"start": "14:20", "end": "15:00", "subject": "Ma"}], "Onsdag": [{"start": "08:45", "end": "09:20", "subject": "So"}, {"start": "09:50", "end": "10:50", "subject": "Ma"}, {"start": "11:00", "end": "12:00", "subject": "Lunch + rast"}, {"start": "12:00", "end": "12:50", "subject": "Sv"}, {"start": "13:00", "end": "13:50", "subject": "So"}, {"start": "14:20", "end": "15:00", "subject": "En"}], "Torsdag": [{"start": "08:45", "end": "09:20", "subject": "Ma"}, {"start": "09:45", "end": "10:35", "subject": "So"}, {"start": "11:00", "end": "12:00", "subject": "Lunch + rast"}, {"start": "12:05", "end": "12:55", "subject": "En"}, {"start": "13:10", "end": "14:00", "subject": "Sv"}, {"start": "14:10", "end": "15:00", "subject": "So"}], "Fredag": [{"start": "08:45", "end": "09:40", "subject": "Sv"}, {"start": "09:50", "end": "10:50", "subject": "En"}, {"start": "11:00", "end": "12:00", "subject": "Lunch + rast"}, {"start": "12:00", "end": "12:50", "subject": "So"}, {"start": "13:00", "end": "13:50", "subject": "Ma"}]}, "Elliot": {"Måndag": [{"start": "10:15", "end": "11:00", "subject": ""}, {"start": "14:00", "end": "15:00", "subject": ""}], "Tisdag": [], "Onsdag": [], "Torsdag": [{"start": "08:30", "end": "09:10", "subject": ""}], "Fredag": [{"start": "11:35", "end": "12:35", "subject": ""}, {"start": "12:55", "end": "14:00", "subject": ""}]}, "Melker": {"Måndag": [{"start": "10:15", "end": "11:00", "subject": ""}, {"start": "14:00", "end": "15:00", "subject": ""}], "Tisdag": [], "Onsdag": [], "Torsdag": [{"start": "08:30", "end": "09:10", "subject": ""}, {"start": "11:35", "end": "13:45", "subject": ""}], "Fredag": [{"start": "11:35", "end": "12:35", "subject": ""}, {"start": "12:55", "end": "14:00", "subject": ""}]}};
+function renderTodaySchedule(){
+ const d=dayName(), list=document.getElementById("todayList");
+ if(!["Måndag","Tisdag","Onsdag","Torsdag","Fredag"].includes(d)){
+   list.innerHTML='<div class="none">Ingen Studieverkstan-schemahelg registrerad.</div>'; return;
+ }
+ const items=[];
+ names.forEach(n=>(schedule[n]?.[d]||[]).forEach(x=>items.push({...x,name:n})));
+ items.sort((a,b)=>a.start.localeCompare(b.start)||a.name.localeCompare(b.name));
+ list.innerHTML=items.length?items.map(x=>`<div class="lesson"><b>${x.start}–${x.end}</b><span>${x.name}</span><span class="tag">${x.subject||"Arbetspass"}</span></div>`).join(""):'<div class="none">Ingen schemalagd Studieverkstan-tid för eleverna denna dag.</div>';
+}
+function render(){
+ renderTodaySchedule();
+ const d=dayData(date.value), grid=document.getElementById("students");grid.innerHTML="";
+ names.forEach(n=>{
+  const x=d[n]||{}, b=document.createElement("button");
+  b.className="student"+(x.in&&!x.out?" active":"")+(x.pauseStart&&!x.pauseEnd?" pause":"");
+  const dn=dayName(), lessons=schedule[n]?.[dn]||[];
+  let sub=x.out?"Utcheckad "+x.out:x.in?(x.pauseStart&&!x.pauseEnd?"🚻 Paus sedan "+x.pauseStart:"🟢 Incheckad "+x.in):"Tryck här";
+  const lessonText=lessons.length?`<small>📚 ${lessons.map(l=>l.start+"–"+l.end+(l.subject?" • "+l.subject:"")).join("<br>")}</small>`:"<small>Ingen schemalagd tid idag</small>";
+  b.innerHTML=n+"<small>"+sub+"</small>"+lessonText;b.onclick=()=>openPanel(n);grid.appendChild(b);
+ });
+}
+function openPanel(n){selected=n;document.getElementById("studentName").textContent="👋 "+n;refreshStatus();document.getElementById("panel").style.display="flex"}
+function closePanel(){document.getElementById("panel").style.display="none";selected=null}
+function refreshStatus(){
+ const x=dayData(date.value)[selected];let t="Inte incheckad";
+ if(x?.in)t="Incheckad "+x.in+(x.out?" • Utcheckad "+x.out:"")+(x.pauseStart?(" • "+(x.pauseEnd?"Paus "+x.pauseStart+"–"+x.pauseEnd:"🚻 Paus sedan "+x.pauseStart)):"");
+ document.getElementById("studentStatus").textContent=t;
+}
+function checkIn(){let d=dayData(date.value);d[selected]={in:time()};save();render();refreshStatus()}
+function togglePause(){
+ let d=dayData(date.value),x=d[selected];if(!x?.in){alert("Eleven måste checka in först.");return}
+ if(!x.pauseStart||x.pauseEnd){x.pauseStart=time();x.pauseEnd=null}else{x.pauseEnd=time()}
+ save();render();refreshStatus()
+}
+function checkOut(){let d=dayData(date.value),x=d[selected];if(!x?.in){alert("Eleven är inte incheckad.");return}if(x.pauseStart&&!x.pauseEnd)x.pauseEnd=time();x.out=time();save();render();refreshStatus()}
+function minutes(a,b){if(!a||!b)return null;let [ah,am]=a.split(":").map(Number),[bh,bm]=b.split(":").map(Number);let m=(bh*60+bm)-(ah*60+am);return m<0?m+1440:m}
+function duration(x){
+ if(!x?.in)return "–";let end=x.out||time(),m=minutes(x.in,end);if(x.pauseStart&&x.pauseEnd)m-=minutes(x.pauseStart,x.pauseEnd);
+ if(m==null)return "–";return Math.floor(m/60)+" h "+(m%60)+" min"+(x.out?"":"*")
+}
+function showTeacher(){document.getElementById("mainView").style.display="none";document.getElementById("teacherView").style.display="block";teacherDate.value=date.value;renderTeacher()}
+function showMain(){document.getElementById("teacherView").style.display="none";document.getElementById("mainView").style.display="block";date.value=teacherDate.value;render()}
+function renderTeacher(){
+ let d=dayData(teacherDate.value),body=document.getElementById("rows");
+ body.innerHTML=names.map(n=>{let x=d[n]||{};return `<tr><td><b>${n}</b></td><td>${x.in||"–"}</td><td>${x.pauseStart?(x.pauseEnd?x.pauseStart+"–"+x.pauseEnd:x.pauseStart+"– pågår"):"–"}</td><td>${x.out||"–"}</td><td>${duration(x)}</td></tr>`}).join("")
+}
+function clearDay(){if(confirm("Rensa alla registreringar för "+teacherDate.value+"?")){delete store[teacherDate.value];save();renderTeacher();if(date.value===teacherDate.value)render()}}
+function resetToday(){render()}
+render();
+</script>
+</body>
+</html>
