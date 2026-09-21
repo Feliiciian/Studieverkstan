@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html lang="sv">
 <head>
 <meta charset="utf-8">
@@ -18,8 +17,11 @@ h1{margin:0;font-size:clamp(26px,5vw,38px)}header p{margin:5px 0;font-size:15px;
 #teacherView{display:none}.box{background:white;border-radius:18px;padding:18px;margin-top:18px;box-shadow:0 3px 12px #0001}.box h2{margin-top:0}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{background:#f5f6f7}.back{background:#243447;color:white;border:0;border-radius:12px;padding:11px 15px;font:inherit;cursor:pointer}.danger{background:#ffe0e0!important}.hint{color:var(--muted);font-size:14px}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:430px){.grid{gap:10px}.student{min-height:100px;font-size:18px;padding:17px 6px}.wrap{padding:14px 10px}}
 
-#todaySchedule{margin-bottom:18px}.lesson{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.lesson:last-child{border-bottom:0}.lesson b{min-width:110px}.lesson .tag{background:var(--blue);border-radius:9px;padding:4px 8px;font-size:13px}.none{color:var(--muted)}
+#todaySchedule{margin-bottom:18px}.lesson{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 10px;border-bottom:1px solid var(--line);border-radius:10px;margin-bottom:7px}.lesson:last-child{border-bottom:0}
+.tag{display:inline-block!important;border-radius:9px;padding:6px 10px!important;font-size:14px;font-weight:700}
+.subject-Arbetspass{background:#e6d3b5!important}.subject-Matte{background:#ef9a9a!important}.subject-Svenska{background:#9fd3a8!important}.subject-Engelska{background:#f3db72!important}.subject-SO{background:#bdbdbd!important}.lesson:last-child{border-bottom:0}.lesson b{min-width:110px}.lesson .tag{background:var(--blue);border-radius:9px;padding:4px 8px;font-size:13px}.none{color:var(--muted)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <header>
@@ -35,11 +37,11 @@ h1{margin:0;font-size:clamp(26px,5vw,38px)}header p{margin:5px 0;font-size:15px;
 <button onclick="resetToday()">↻ Uppdatera</button>
 <button class="teacher" onclick="showTeacher()">👩‍🏫 Lärarläge</button>
 </div>
+<div class="grid" id="students"></div>
 <div class="box" id="todaySchedule">
 <h2>📅 Dagens Studieverkstan</h2>
 <div id="todayList"></div>
 </div>
-<div class="grid" id="students"></div>
 </div>
 
 <div id="teacherView">
@@ -86,7 +88,7 @@ setInterval(updateClock,1000);updateClock();
 
 const date=document.getElementById("date"), teacherDate=document.getElementById("teacherDate");
 date.value=today();teacherDate.value=today();
-date.onchange=render;teacherDate.onchange=renderTeacher;
+date.onchange=render;teacherDate.onchange=()=>{renderTeacher();renderWeekSummary()};
 
 
 function dayName(){
@@ -102,7 +104,7 @@ function renderTodaySchedule(){
  const items=[];
  names.forEach(n=>(schedule[n]?.[d]||[]).forEach(x=>items.push({...x,name:n})));
  items.sort((a,b)=>a.start.localeCompare(b.start)||a.name.localeCompare(b.name));
- list.innerHTML=items.length?items.map(x=>`<div class="lesson"><b>${x.start}–${x.end}</b><span>${x.name}</span><span class="tag">${x.subject||"Arbetspass"}</span></div>`).join(""):'<div class="none">Ingen schemalagd Studieverkstan-tid för eleverna denna dag.</div>';
+ list.innerHTML=items.length?items.map(x=>`<div class="lesson"><b>${x.start}–${x.end}</b><span>${x.name}</span><span class="tag subject-${x.subject||"Arbetspass"}">${x.subject||"Arbetspass"}</span></div>`).join(""):'<div class="none">Ingen schemalagd Studieverkstan-tid för eleverna denna dag.</div>';
 }
 function render(){
  renderTodaySchedule();
@@ -113,7 +115,7 @@ function render(){
   const dn=dayName(), lessons=schedule[n]?.[dn]||[];
   let sub=x.out?"Utcheckad "+x.out:x.in?(x.pauseStart&&!x.pauseEnd?"🚻 Paus sedan "+x.pauseStart:"🟢 Incheckad "+x.in):"Tryck här";
   const lessonText=lessons.length?`<small>📚 ${lessons.map(l=>l.start+"–"+l.end+(l.subject?" • "+l.subject:"")).join("<br>")}</small>`:"<small>Ingen schemalagd tid idag</small>";
-  b.innerHTML=n+"<small>"+sub+"</small>"+lessonText;b.onclick=()=>openPanel(n);grid.appendChild(b);
+  b.innerHTML="<strong>"+n+"</strong><small>"+sub+"</small>"+lessonText;b.onclick=()=>openPanel(n);grid.appendChild(b);
  });
 }
 function openPanel(n){selected=n;document.getElementById("studentName").textContent="👋 "+n;refreshStatus();document.getElementById("panel").style.display="flex"}
